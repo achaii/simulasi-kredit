@@ -35,57 +35,58 @@ export default function GlossaryView({ onSelectVehicle }: GlossaryViewProps) {
     const q = deferredQuery.toLowerCase().trim();
 
     if (filterType === "MOTOR") {
-      let motors = vehicleData.motors.map((m: string) => ({
-        model: m,
-        kode_stnk: "-",
-        nama_pasar: m,
-        kode: "MCY",
-        isMotor: true,
-      }));
+      let motors = glossaryItems.filter((g: any) => g.isMotor);
       if (q) {
-        motors = motors.filter((m: { model: string }) => m.model.toLowerCase().includes(q));
+        motors = motors.filter(
+          (m: any) =>
+            m.model.toLowerCase().includes(q) ||
+            m.nama_pasar.toLowerCase().includes(q) ||
+            (m.kode && m.kode.toLowerCase().includes(q)) ||
+            (m.kode_stnk && m.kode_stnk.toLowerCase().includes(q))
+        );
       }
       return motors;
     }
 
-    let glossary = glossaryItems.map((g: any) => ({
-      ...g,
-      isMotor: false,
-    }));
-
     if (filterType === "MOBIL") {
+      let cars = glossaryItems.filter((g: any) => !g.isMotor);
       if (q) {
-        glossary = glossary.filter(
+        cars = cars.filter(
           (g: any) =>
+            g.model.toLowerCase().includes(q) ||
+            g.nama_pasar.toLowerCase().includes(q) ||
+            (g.kode && g.kode.toLowerCase().includes(q)) ||
+            (g.kode_stnk && g.kode_stnk.toLowerCase().includes(q))
+        );
+      }
+      return cars;
+    }
+
+    if (filterType === "STNK") {
+      let stnkList = glossaryItems.filter((g: any) => g.kode_stnk && g.kode_stnk.trim() !== "" && g.kode_stnk !== "-");
+      if (q) {
+        stnkList = stnkList.filter(
+          (g: any) =>
+            g.kode_stnk.toLowerCase().includes(q) ||
             g.model.toLowerCase().includes(q) ||
             g.nama_pasar.toLowerCase().includes(q)
         );
       }
-      return glossary;
-    }
-
-    if (filterType === "STNK") {
-      glossary = glossary.filter((g: any) => g.kode_stnk && g.kode_stnk !== "-");
-      if (q) {
-        glossary = glossary.filter(
-          (g: any) =>
-            g.kode_stnk.toLowerCase().includes(q) ||
-            g.model.toLowerCase().includes(q)
-        );
-      }
-      return glossary;
+      return stnkList;
     }
 
     // ALL
+    let all = glossaryItems;
     if (q) {
-      glossary = glossary.filter(
+      all = all.filter(
         (g: any) =>
           g.model.toLowerCase().includes(q) ||
-          g.kode_stnk.toLowerCase().includes(q) ||
-          g.nama_pasar.toLowerCase().includes(q)
+          (g.kode_stnk && g.kode_stnk.toLowerCase().includes(q)) ||
+          g.nama_pasar.toLowerCase().includes(q) ||
+          (g.kode && g.kode.toLowerCase().includes(q))
       );
     }
-    return glossary;
+    return all;
   }, [deferredQuery, filterType, glossaryItems]);
 
   const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
@@ -108,10 +109,12 @@ export default function GlossaryView({ onSelectVehicle }: GlossaryViewProps) {
                 <h1 className="text-xl md:text-2xl font-extrabold text-[#1A3835]">
                   Glossary &amp; Database OTR
                 </h1>
-                <span className="flip7-badge badge-teal">5,075 Data Terhubung</span>
+                <span className="flip7-badge badge-teal">
+                  {glossaryItems.length ? glossaryItems.length.toLocaleString("id-ID") : "5.690"} Data Terhubung
+                </span>
               </div>
               <p className="text-xs text-[#6B9590] mt-0.5 font-medium">
-                Pencarian lengkap 2,180 tipe mobil, 845 motor, kode STNK kepolisian, dan nama pasar resmi
+                Pencarian lengkap {vehicleData.cars.length.toLocaleString("id-ID")} tipe mobil, {vehicleData.motors.length.toLocaleString("id-ID")} motor, kode STNK kepolisian, dan nama pasar resmi
               </p>
             </div>
           </div>
@@ -218,7 +221,7 @@ export default function GlossaryView({ onSelectVehicle }: GlossaryViewProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#EFF8F7]">
-              {isLoading && filterType !== "MOTOR" ? (
+              {isLoading ? (
                 <tr>
                   <td colSpan={6} className="py-10 text-center text-[#2BA8A2] font-bold">
                     <div className="flex items-center justify-center gap-2">

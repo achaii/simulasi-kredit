@@ -19,6 +19,8 @@
 
 # production
 /build
+/excel/
+/excel
 
 # misc
 .DS_Store

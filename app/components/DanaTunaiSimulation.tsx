@@ -36,6 +36,7 @@ const CAR_BRANDS = [
   "BMW",
   "MERCEDES-BENZ",
   "KIA",
+  "HINO",
   "LAINNYA",
 ];
 
@@ -54,7 +55,7 @@ const CAR_BRAND_ALIASES: Record<string, string[]> = {
     "AVANZA", "INNOVA", "FORTUNER", "CALYA", "AGYA", "RUSH", "YARIS", "RAIZE",
     "VELOZ", "COROLLA", "CAMRY", "ALPHARD", "VOXY", "HILUX", "HIACE", "SIENTA",
     "VIOS", "ETIOS", "CHR", "HARRIER", "PRADO", "DYNA", "GRNDNW AVANZA",
-    "ALN AVANZA", "ALN VELOZ", "ALN AGYA"
+    "ALN AVANZA", "ALN VELOZ", "ALN AGYA", "ZENIX", "RANGGA", "HILUXRANGGA"
   ],
   HONDA: [
     "BRIO", "HRV", "HR-V", "CRV", "CR-V", "BRV", "BR-V", "WRV", "WR-V",
@@ -94,6 +95,7 @@ const CAR_BRAND_ALIASES: Record<string, string[]> = {
   BMW: ["320", "330", "520", "530", "X1", "X3", "X5", "X6", "M3", "M4"],
   "MERCEDES-BENZ": ["C 200", "C 300", "E 200", "E 300", "GLA", "GLC", "GLE", "GLS", "CLA"],
   KIA: ["PICANTO", "RIO", "SELTOS", "SONET", "SPORTAGE", "CARNIVAL", "CARENS", "EV6"],
+  HINO: ["HINO", "DUTRO", "FG", "FL", "FM", "SG", "RK", "RN"],
 };
 
 const MOTOR_BRAND_ALIASES: Record<string, string[]> = {
