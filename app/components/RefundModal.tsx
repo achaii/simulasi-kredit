@@ -28,10 +28,10 @@ export default function RefundModal({
   rateNormal,
   totalAsuransi,
 }: RefundModalProps) {
-  if (!isOpen) return null;
-
   const [rateUp, setRateUp] = useState<number>(Number((rateNormal + 1.5).toFixed(2)));
   const [copied, setCopied] = useState<boolean>(false);
+
+  if (!isOpen) return null;
 
   const refund = calculateRefund(pokokHutang, tenorMonths, rateNormal, rateUp, totalAsuransi);
 

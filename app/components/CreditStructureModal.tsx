@@ -16,9 +16,9 @@ export default function CreditStructureModal({
   result,
   vehicleName,
 }: CreditStructureModalProps) {
-  if (!isOpen) return null;
-
   const [activeTab, setActiveTab] = useState<"structure" | "schedule">("structure");
+
+  if (!isOpen) return null;
 
   return (
     <div className="flip7-modal-overlay">

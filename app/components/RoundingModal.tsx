@@ -20,10 +20,10 @@ export default function RoundingModal({
   currentDp,
   onApplyRounding,
 }: RoundingModalProps) {
-  if (!isOpen) return null;
-
   const defaultTarget = Math.round(currentAngsuran / 50000) * 50000;
   const [targetInput, setTargetInput] = useState<number>(defaultTarget);
+
+  if (!isOpen) return null;
 
   const calc = calculateRounding(currentAngsuran, targetInput, tenorMonths, currentDp);
 
