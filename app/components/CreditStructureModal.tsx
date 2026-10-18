@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
-import { LoanResult, formatRupiah } from "../utils/calculator";
+import { LoanResult, DanaTunaiResult, formatRupiah } from "../utils/calculator";
 
 interface CreditStructureModalProps {
   isOpen: boolean;
   onClose: () => void;
-  result: LoanResult;
+  result: LoanResult | DanaTunaiResult;
   vehicleName: string;
+  isDanaTunai?: boolean;
 }
 
 export default function CreditStructureModal({
@@ -15,10 +16,13 @@ export default function CreditStructureModal({
   onClose,
   result,
   vehicleName,
+  isDanaTunai = false,
 }: CreditStructureModalProps) {
   const [activeTab, setActiveTab] = useState<"structure" | "schedule">("structure");
 
   if (!isOpen) return null;
+
+  const dtResult = isDanaTunai ? (result as DanaTunaiResult) : null;
 
   return (
     <div className="flip7-modal-overlay">
@@ -26,15 +30,19 @@ export default function CreditStructureModal({
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-[#2BA8A2]/15">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#E8F4FC] border border-[#5DADE2] flex items-center justify-center text-xl shadow-sm">
-              📋
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center text-xl shadow-sm ${
+              isDanaTunai ? "bg-[#FFF4D0] border border-[#FFD23F]" : "bg-[#E8F4FC] border border-[#5DADE2]"
+            }`}>
+              {isDanaTunai ? "💵" : "📋"}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-extrabold text-[#1A3835]">
-                  Struktur Kredit Pembiayaan
+                  {isDanaTunai ? "Struktur Pembiayaan Dana Tunai" : "Struktur Kredit Pembiayaan"}
                 </h3>
-                <span className="flip7-badge badge-sky">Struktur Kredit</span>
+                <span className={`flip7-badge ${isDanaTunai ? "badge-gold" : "badge-sky"}`}>
+                  {isDanaTunai ? "Gadai BPKB" : "Struktur Kredit"}
+                </span>
               </div>
               <p className="text-xs text-[#6B9590] mt-0.5 font-medium">
                 {vehicleName} • Tenor {result.tenorMonths} Bulan ({result.tenorYears} Tahun)
@@ -75,33 +83,64 @@ export default function CreditStructureModal({
               {/* Item rows */}
               <div className="border border-[#2BA8A2]/20 rounded-2xl overflow-hidden text-xs bg-white shadow-sm">
                 <div className="flex justify-between p-3.5 bg-[#FFF8E7] border-b border-[#FFD23F]/30 font-extrabold text-[#1A3835]">
-                  <span>Harga On The Road (OTR):</span>
+                  <span>{isDanaTunai ? "Nilai Taksasi Pasar (OTR):" : "Harga On The Road (OTR):"}</span>
                   <span className="text-[#1E8C86] text-sm">{formatRupiah(result.otr)}</span>
                 </div>
-                <div className="flex justify-between p-3 border-b border-[#EFF8F7]">
-                  <span className="text-[#6B9590]">Uang Muka Net ({result.dpPercent}%):</span>
-                  <span className="font-bold text-[#1A3835]">{formatRupiah(result.dpNet)}</span>
-                </div>
-                <div className="flex justify-between p-3 border-b border-[#EFF8F7]">
-                  <span className="text-[#6B9590]">Pokok Hutang Murni (OTR - DP):</span>
-                  <span className="font-bold text-[#1A3835]">{formatRupiah(result.pokokHutangMurni)}</span>
-                </div>
+
+                {isDanaTunai ? (
+                  <>
+                    <div className="flex justify-between p-3 border-b border-[#EFF8F7]">
+                      <span className="text-[#6B9590]">Persentase LTV (Loan To Value):</span>
+                      <span className="font-extrabold text-[#996B00]">{dtResult?.ltvPercent || (100 - result.dpPercent)}%</span>
+                    </div>
+                    <div className="flex justify-between p-3 border-b border-[#EFF8F7] bg-[#F4FBFB]">
+                      <span className="text-[#1A3835] font-bold">Plafon Pinjaman (Taksasi x LTV):</span>
+                      <span className="font-extrabold text-[#1E8C86]">{formatRupiah(dtResult?.plafonPinjaman || result.pokokHutangMurni)}</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex justify-between p-3 border-b border-[#EFF8F7]">
+                      <span className="text-[#6B9590]">Uang Muka Net ({result.dpPercent}%):</span>
+                      <span className="font-bold text-[#1A3835]">{formatRupiah(result.dpNet)}</span>
+                    </div>
+                    <div className="flex justify-between p-3 border-b border-[#EFF8F7]">
+                      <span className="text-[#6B9590]">Pokok Hutang Murni (OTR - DP):</span>
+                      <span className="font-bold text-[#1A3835]">{formatRupiah(result.pokokHutangMurni)}</span>
+                    </div>
+                  </>
+                )}
+
                 <div className="flex justify-between p-3 border-b border-[#EFF8F7]">
                   <span className="text-[#6B9590]">
-                    Premi Asuransi Kendaraan ({result.asuransiPayment}):
+                    Premi Asuransi Kendaraan ({result.asuransiPayment === "CASH" ? (isDanaTunai ? "Potong Pencairan" : "Cash") : "Kredit"}):
                   </span>
                   <span className="font-bold text-[#1A3835]">
                     {formatRupiah(result.totalAsuransi)}
                   </span>
                 </div>
                 <div className="flex justify-between p-3 border-b border-[#EFF8F7]">
-                  <span className="text-[#6B9590]">Biaya Administrasi ({result.adminPayment}):</span>
+                  <span className="text-[#6B9590]">
+                    Biaya Administrasi ({result.adminPayment === "CASH" ? (isDanaTunai ? "Potong Pencairan" : "Cash") : "Kredit"}):
+                  </span>
                   <span className="font-bold text-[#1A3835]">{formatRupiah(result.biayaAdmin)}</span>
                 </div>
                 <div className="flex justify-between p-3 border-b border-[#EFF8F7]">
-                  <span className="text-[#6B9590]">Biaya Provisi ({result.provisiPayment}):</span>
+                  <span className="text-[#6B9590]">
+                    Biaya Provisi ({result.provisiPayment === "CASH" ? (isDanaTunai ? "Potong Pencairan" : "Cash") : "Kredit"}):
+                  </span>
                   <span className="font-bold text-[#1A3835]">{formatRupiah(result.biayaProvisi)}</span>
                 </div>
+
+                {isDanaTunai && (
+                  <div className="flex justify-between p-3 border-b border-[#EFF8F7] bg-[#FFF4D0]/40">
+                    <span className="text-[#996B00] font-bold">Total Potongan Biaya / Di Muka:</span>
+                    <span className="font-extrabold text-[#EF6C4A]">
+                      - {formatRupiah(dtResult?.totalPotongan ?? (result.biayaAdmin + result.biayaProvisi + result.totalAsuransi))}
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex justify-between p-3.5 bg-[#E8F6F5] border-b border-[#2BA8A2]/20 font-extrabold text-[#1E8C86]">
                   <span>Total Pokok Hutang Pembiayaan (PH):</span>
                   <span>{formatRupiah(result.totalPokokHutang)}</span>
@@ -124,13 +163,15 @@ export default function CreditStructureModal({
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <div className="p-3.5 rounded-2xl bg-[#FFF4D0] border border-[#FFD23F]">
                   <span className="text-xs font-bold text-[#996B00] uppercase block">
-                    Total DP Pertama (TDP)
+                    {isDanaTunai ? "Estimasi Pencairan Bersih" : "Total DP Pertama (TDP)"}
                   </span>
                   <p className="text-lg font-black text-[#8A6000] mt-0.5">
-                    {formatRupiah(result.totalDownPayment)}
+                    {formatRupiah(isDanaTunai ? (dtResult?.pencairanBersih ?? result.pokokHutangMurni) : result.totalDownPayment)}
                   </p>
                   <span className="text-[11px] text-[#996B00]">
-                    {result.angsuranType === "ADVANCE" ? "Termasuk Angsuran ke-1 (ADDM)" : "Murni DP + Biaya (ADDB)"}
+                    {isDanaTunai 
+                      ? "*Diterima bersih masuk ke rekening nasabah"
+                      : (result.angsuranType === "ADVANCE" ? "Termasuk Angsuran ke-1 (ADDM)" : "Murni DP + Biaya (ADDB)")}
                   </span>
                 </div>
 

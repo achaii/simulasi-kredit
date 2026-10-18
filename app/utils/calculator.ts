@@ -455,3 +455,214 @@ export function generateRefundShareText(
 ✨ *TOTAL REFUND DITERIMA: ${formatRupiah(refund.totalRefund)}*
 ━━━━━━━━━━━━━━━━━━━━`;
 }
+
+export interface DanaTunaiParams {
+  category: "MOBIL" | "MOTOR";
+  merk: string;
+  vehicleType: string;
+  tahun?: number;
+  otr: number; // Nilai Taksasi Pasar Kendaraan
+  ltvPercent: number; // Persentase LTV (e.g. 50 - 90%)
+  tenorMonths: number; // 12, 18, 24, 30, 36, 48, 60
+  flatRateAnnual?: number;
+  adminAmount?: number;
+  provisiPercent?: number; // e.g. 1.5%
+  asuransiType?: "TLO" | "ALL_RISK" | "NONE";
+  biayaDipotongPencairan?: boolean; // true = potong dari pencairan, false = dikreditkan
+  angsuranType?: "ADVANCE" | "ARREAR";
+}
+
+export interface DanaTunaiResult extends LoanResult {
+  category: "MOBIL" | "MOTOR";
+  merk: string;
+  vehicleType: string;
+  ltvPercent: number;
+  nilaiTaksasi: number;
+  plafonPinjaman: number;
+  pencairanBersih: number;
+  totalPotongan: number;
+  biayaDipotongPencairan: boolean;
+}
+
+export function calculateDanaTunai(params: DanaTunaiParams): DanaTunaiResult {
+  const {
+    category,
+    merk,
+    vehicleType,
+    otr,
+    ltvPercent,
+    tenorMonths,
+    tahun = 2022,
+  } = params;
+
+  const tenorYears = tenorMonths / 12;
+
+  // 1. Suku Bunga Default
+  const defaultRate =
+    category === "MOBIL"
+      ? tenorMonths <= 12
+        ? 8.5
+        : tenorMonths <= 24
+        ? 9.5
+        : tenorMonths <= 36
+        ? 10.5
+        : tenorMonths <= 48
+        ? 11.5
+        : 12.5
+      : tenorMonths <= 12
+      ? 14.5
+      : tenorMonths <= 24
+      ? 16.5
+      : 18.5;
+
+  const flatRate = params.flatRateAnnual ?? defaultRate;
+
+  // 2. Biaya Administrasi
+  const defaultAdmin =
+    category === "MOBIL"
+      ? tenorMonths <= 12
+        ? 2000000
+        : tenorMonths <= 24
+        ? 2250000
+        : tenorMonths <= 36
+        ? 2500000
+        : 2750000
+      : tenorMonths <= 12
+      ? 650000
+      : 800000;
+
+  const adminFee = params.adminAmount ?? defaultAdmin;
+
+  // 3. Plafon Pinjaman dari Nilai Taksasi x LTV%
+  const plafonPinjaman = Math.round(otr * (ltvPercent / 100));
+
+  // 4. Biaya Provisi
+  const provisiPercent = params.provisiPercent ?? 1.5;
+  const provisiFee = Math.round(plafonPinjaman * (provisiPercent / 100));
+
+  // 5. Asuransi Kendaraan
+  const asuransiType = params.asuransiType ?? "TLO";
+  let insuranceRatePerYear = 0;
+  if (asuransiType === "TLO") {
+    insuranceRatePerYear = category === "MOBIL" ? 0.0055 : 0.018;
+  } else if (asuransiType === "ALL_RISK") {
+    insuranceRatePerYear = category === "MOBIL" ? 0.0247 : 0.035;
+  }
+  const totalAsuransi = Math.round(otr * insuranceRatePerYear * tenorYears);
+
+  // 6. Skema Biaya & Angsuran
+  const biayaDipotongPencairan = params.biayaDipotongPencairan ?? true;
+  const angsuranType = params.angsuranType ?? "ARREAR";
+
+  let totalPokokHutang = plafonPinjaman;
+  let totalPotongan = 0;
+  let pencairanBersih = 0;
+
+  if (biayaDipotongPencairan) {
+    // Biaya dipotong langsung dari nilai pencairan ke nasabah
+    totalPokokHutang = plafonPinjaman;
+    totalPotongan = adminFee + provisiFee + totalAsuransi;
+  } else {
+    // Biaya dikreditkan / dikapitalisasi ke dalam pokok hutang
+    totalPokokHutang = plafonPinjaman + adminFee + provisiFee + totalAsuransi;
+    totalPotongan = 0;
+  }
+
+  // 7. Total Bunga & Total Hutang
+  const totalBunga = Math.round(totalPokokHutang * (flatRate / 100) * tenorYears);
+  const totalHutang = totalPokokHutang + totalBunga;
+  const angsuranBulanan = Math.round(totalHutang / tenorMonths);
+  const angsuranBulat = Math.ceil(angsuranBulanan / 1000) * 1000;
+
+  // Jika ADDM (Angsuran Pertama di Muka), angsuran ke-1 dipotong dari pencairan
+  if (angsuranType === "ADVANCE") {
+    totalPotongan += angsuranBulanan;
+  }
+
+  pencairanBersih = Math.max(0, plafonPinjaman - totalPotongan);
+
+  // 8. Jadwal Amortisasi
+  const amortizationSchedule = [];
+  let sisaHutang = totalHutang;
+  const pokokPerBulan = Math.round(totalPokokHutang / tenorMonths);
+  const bungaPerBulan = Math.round(totalBunga / tenorMonths);
+
+  for (let m = 1; m <= tenorMonths; m++) {
+    sisaHutang = Math.max(0, sisaHutang - angsuranBulanan);
+    amortizationSchedule.push({
+      month: m,
+      angsuran: angsuranBulanan,
+      pokok: pokokPerBulan,
+      bunga: bungaPerBulan,
+      sisaHutang,
+    });
+  }
+
+  return {
+    category,
+    merk,
+    vehicleType,
+    ltvPercent,
+    nilaiTaksasi: otr,
+    plafonPinjaman,
+    pencairanBersih,
+    totalPotongan,
+    biayaDipotongPencairan,
+    otr,
+    dpNet: otr - plafonPinjaman,
+    dpGross: otr - plafonPinjaman,
+    dpPercent: 100 - ltvPercent,
+    pokokHutangMurni: plafonPinjaman,
+    biayaAsuransiUtama: totalAsuransi,
+    biayaAsuransiPerluasan: 0,
+    totalAsuransi,
+    biayaAdmin: adminFee,
+    biayaProvisi: provisiFee,
+    asuransiPayment: biayaDipotongPencairan ? "CASH" : "CREDIT",
+    adminPayment: biayaDipotongPencairan ? "CASH" : "CREDIT",
+    provisiPayment: biayaDipotongPencairan ? "CASH" : "CREDIT",
+    totalPokokHutang,
+    flatRateAnnual: flatRate,
+    tenorYears,
+    tenorMonths,
+    totalBunga,
+    totalHutang,
+    angsuranBulanan,
+    angsuranBulat,
+    totalDownPayment: totalPotongan,
+    angsuranType,
+    amortizationSchedule,
+  };
+}
+
+export function generateDanaTunaiShareText(
+  merk: string,
+  vehicleType: string,
+  tahun: number,
+  result: DanaTunaiResult
+): string {
+  return `*ADYATMA SIMULASI DANA TUNAI (REFINANCING BPKB)*
+━━━━━━━━━━━━━━━━━━━━
+🏷️ *Kendaraan:* ${merk} - ${vehicleType} (${tahun})
+💰 *Nilai Taksasi Pasar (OTR):* ${formatRupiah(result.nilaiTaksasi)}
+📊 *LTV (Loan To Value):* ${result.ltvPercent}%
+💵 *Plafon Pembiayaan:* ${formatRupiah(result.plafonPinjaman)}
+━━━━━━━━━━━━━━━━━━━━
+✨ *ESTIMASI DANA CAIR BERSIH KE REKENING:*
+👉 *${formatRupiah(result.pencairanBersih)}*
+━━━━━━━━━━━━━━━━━━━━
+📌 *Rincian Angsuran & Tenor:*
+• *Tenor:* ${result.tenorMonths} Bulan (${result.tenorYears} Tahun)
+• *Angsuran / Bulan:* ${formatRupiah(result.angsuranBulanan)}
+• *Suku Bunga:* ${result.flatRateAnnual}% p.a. Flat
+• *Tipe Angsuran:* ${result.angsuranType === "ARREAR" ? "ADDB (Di Belakang)" : "ADDM (Di Muka)"}
+━━━━━━━━━━━━━━━━━━━━
+📋 *Struktur Biaya:*
+• Biaya Administrasi: ${formatRupiah(result.biayaAdmin)}
+• Biaya Provisi: ${formatRupiah(result.biayaProvisi)}
+• Asuransi Kendaraan: ${formatRupiah(result.totalAsuransi)}
+• Skema Biaya: ${result.biayaDipotongPencairan ? "Dipotong Pencairan" : "Dikreditkan (Masuk Pokok Hutang)"}
+━━━━━━━━━━━━━━━━━━━━
+_Simulasi resmi estimasi pinjaman dana tunai jaminan BPKB. Proses mudah, pencairan cepat & aman!_`;
+}
+

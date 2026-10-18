@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Navbar from "./components/Navbar";
 import CarSimulation from "./components/CarSimulation";
 import MotorSimulation from "./components/MotorSimulation";
+import DanaTunaiSimulation from "./components/DanaTunaiSimulation";
 import GlossaryView from "./components/GlossaryView";
 import RefundFeeCalculator from "./components/RefundFeeCalculator";
 
@@ -11,13 +12,16 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<string>("car");
   const [selectedCar, setSelectedCar] = useState<string>("AVANZA 1.5 G MT");
   const [selectedMotor, setSelectedMotor] = useState<string>("VARIO 160 CBS");
+  const [selectedDanaTunai, setSelectedDanaTunai] = useState<string>("AVANZA 1.5 G MT");
 
   const handleSelectFromGlossary = (model: string, isMotor?: boolean) => {
     if (isMotor) {
       setSelectedMotor(model);
+      setSelectedDanaTunai(model);
       setActiveTab("motor");
     } else {
       setSelectedCar(model);
+      setSelectedDanaTunai(model);
       setActiveTab("car");
     }
   };
@@ -40,6 +44,13 @@ export default function Home() {
         {activeTab === "motor" && (
           <MotorSimulation
             initialMotor={selectedMotor}
+            onOpenGlossary={() => setActiveTab("glossary")}
+          />
+        )}
+
+        {activeTab === "dana-tunai" && (
+          <DanaTunaiSimulation
+            initialVehicle={selectedDanaTunai}
             onOpenGlossary={() => setActiveTab("glossary")}
           />
         )}

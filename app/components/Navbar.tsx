@@ -13,6 +13,7 @@ export default function Navbar({ activeTab, setActiveTab }: NavbarProps) {
   const tabs = [
     { id: "car", label: "Simulasi Mobil", emoji: "🚗" },
     { id: "motor", label: "Simulasi Motor", emoji: "🏍️" },
+    { id: "dana-tunai", label: "Dana Tunai", emoji: "💵" },
     { id: "glossary", label: "Glossary OTR", emoji: "📖" },
     { id: "refund", label: "Hitung Refund", emoji: "💰" },
   ];
