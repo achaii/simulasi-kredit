@@ -67,7 +67,7 @@ const CAR_BRAND_ALIASES: Record<string, string[]> = {
     "LUXIO", "SIRION", "GRN XENIA", "NEW XENIA", "ALN XENIA", "ALN AYLA"
   ],
   MITSUBISHI: [
-    "XPANDER", "PAJERO", "OUTLANDER", "MIRAGE", "TRITON", "L300", "L 300",
+    "FE", "CANTER", "COLT DIESEL", "XPANDER", "PAJERO", "OUTLANDER", "MIRAGE", "TRITON", "L300", "L 300",
     "COLT", "ECLIPSE", "XFORCE", "FUSO", "STRADA"
   ],
   SUZUKI: [
@@ -130,6 +130,20 @@ function getEstimatedMarketPrice(category: "MOBIL" | "MOTOR", vehicleType: strin
   const upper = vehicleType.toUpperCase();
   if (category === "MOBIL") {
     if (
+      upper.includes("FE 84") ||
+      upper.includes("FE 71") ||
+      upper.includes("FE 74") ||
+      upper.includes("FE 83") ||
+      upper.includes("CANTER") ||
+      upper.includes("DUTRO") ||
+      upper.includes("GIGA") ||
+      upper.includes("ELF") ||
+      upper.includes("FUSO") ||
+      upper.includes("HINO")
+    ) {
+      return 299000000;
+    }
+    if (
       upper.includes("FORTUNER") ||
       upper.includes("PAJERO") ||
       upper.includes("ALPHARD") ||
@@ -160,7 +174,7 @@ function getEstimatedMarketPrice(category: "MOBIL" | "MOTOR", vehicleType: strin
       upper.includes("TERIOS") ||
       upper.includes("XL7")
     ) {
-      return 210000000;
+      return 200000000;
     }
     if (
       upper.includes("BRIO") ||
@@ -253,11 +267,12 @@ export default function DanaTunaiSimulation({
   const [tenorMonths, setTenorMonths] = useState<number>(36);
 
   // Additional credit conditions
-  const [biayaDipotongPencairan, setBiayaDipotongPencairan] = useState<boolean>(true);
+  // Default Dana Tunai resmi: biaya dikreditkan agar dana cair utuh 100%
+  const [biayaDipotongPencairan, setBiayaDipotongPencairan] = useState<boolean>(false);
   const [angsuranType, setAngsuranType] = useState<"ARREAR" | "ADVANCE">("ARREAR");
   const [asuransiType, setAsuransiType] = useState<"TLO" | "ALL_RISK" | "NONE">("TLO");
-  const [adminAmount, setAdminAmount] = useState<number>(2500000);
-  const [provisiPercent, setProvisiPercent] = useState<number>(1.5);
+  const [adminAmount, setAdminAmount] = useState<number>(3000000);
+  const [provisiPercent, setProvisiPercent] = useState<number>(2.0);
   const [customRate, setCustomRate] = useState<number | undefined>(undefined);
 
   // Modals & Sharing
@@ -290,7 +305,7 @@ export default function DanaTunaiSimulation({
       setSearchQuery("AVANZA 1.5 G MT");
       setOtr(200000000);
       setTenorMonths(36);
-      setAdminAmount(2500000);
+      setAdminAmount(3000000);
       setCustomRate(undefined);
     } else {
       setMerk("HONDA");
@@ -308,12 +323,12 @@ export default function DanaTunaiSimulation({
     if (category === "MOBIL") {
       const defaultAdmin =
         tenorMonths <= 12
-          ? 2000000
-          : tenorMonths <= 24
-          ? 2250000
-          : tenorMonths <= 36
           ? 2500000
-          : 2750000;
+          : tenorMonths <= 24
+          ? 2750000
+          : tenorMonths <= 36
+          ? 3000000
+          : 3500000;
       setAdminAmount(defaultAdmin);
     } else {
       const defaultAdmin = tenorMonths <= 12 ? 650000 : 800000;
@@ -935,6 +950,27 @@ export default function DanaTunaiSimulation({
               </p>
             </div>
 
+            {/* Estimasi Total Refund Agen Card Box */}
+            <div
+              className="p-3.5 rounded-2xl border-2 border-[#EF6C4A]/30 space-y-1 shadow-sm"
+              style={{ background: "linear-gradient(135deg, #FFF5F2 0%, #FEE8E2 100%)" }}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-extrabold text-[#EF6C4A] uppercase tracking-wide">
+                  💰 Estimasi Total Refund (Komisi Agen)
+                </span>
+                <span className="flip7-badge badge-coral text-[10px]">
+                  {result.refundRatePercent}% Netto
+                </span>
+              </div>
+              <div className="text-2xl sm:text-3xl font-black text-[#D44D2B] tracking-tight">
+                {formatRupiah(result.totalRefund)}
+              </div>
+              <p className="text-[11px] text-[#A84A32] font-medium">
+                *Komisi kemitraan resmi langsung cair ke rekening agen (PPh 21 3.4% sudah dipotong)
+              </p>
+            </div>
+
             {/* Detailed Summary Breakdown */}
             <div className="text-xs space-y-2 pt-1 border-t border-[#FFD23F]/30 text-[#325854]">
               <div className="flex justify-between py-1 border-b border-[#EFF8F7]">
@@ -968,6 +1004,10 @@ export default function DanaTunaiSimulation({
               <div className="flex justify-between py-1 border-b border-[#EFF8F7]">
                 <span className="text-[#6B9590]">Premi Asuransi ({asuransiType}):</span>
                 <span className="font-bold text-[#1A3835]">{formatRupiah(result.totalAsuransi)}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-[#EFF8F7] font-bold text-[#EF6C4A]">
+                <span>Total Refund (Komisi Agen):</span>
+                <span>{formatRupiah(result.totalRefund)} ({result.refundRatePercent}% Net)</span>
               </div>
               {biayaDipotongPencairan && (
                 <div className="flex justify-between py-1 border-b border-[#EFF8F7] font-bold text-[#EF6C4A]">
@@ -1064,6 +1104,8 @@ export default function DanaTunaiSimulation({
         tenorMonths={result.tenorMonths}
         rateNormal={result.flatRateAnnual}
         totalAsuransi={result.totalAsuransi}
+        isDanaTunai={true}
+        pencairanBersih={result.pencairanBersih}
       />
 
       <CreditStructureModal

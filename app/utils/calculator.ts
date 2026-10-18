@@ -71,6 +71,9 @@ export interface RefundResult {
   refundAsuransi: number;
   refundLendingRate: number;
   totalRefund: number;
+  isDanaTunai?: boolean;
+  refundPencairan?: number;
+  refundRatePercent?: number;
 }
 
 export function getDefaultAdminFee(tenorMonths: number): number {
@@ -352,10 +355,46 @@ export function calculateRefund(
   tenorMonths: number,
   rateNormal: number,
   rateUp: number,
-  totalAsuransi: number
+  totalAsuransi: number,
+  isDanaTunai?: boolean,
+  pencairanBersih?: number
 ): RefundResult {
   const tenorYears = tenorMonths / 12;
   const diffRate = Math.max(0, rateUp - rateNormal);
+
+  if (isDanaTunai) {
+    const pencairan = pencairanBersih ?? pokokHutang;
+    let refundRatePercent = 4.83;
+    if (tenorMonths <= 12) refundRatePercent = 1.45;
+    else if (tenorMonths <= 24) refundRatePercent = 2.65;
+    else if (tenorMonths <= 36) refundRatePercent = 3.72;
+    else if (tenorMonths <= 48) refundRatePercent = 4.83;
+    else refundRatePercent = 5.55;
+
+    // Refund Kemitraan Dana Tunai (Net to Finance)
+    const refundPencairan = Math.round(pencairan * (refundRatePercent / 100));
+
+    // Jika ada rate up tambahan yang dimasukkan oleh marketing
+    const refundBunga = Math.round(pokokHutang * (diffRate / 100) * tenorYears * 0.85);
+    const refundAsuransi = diffRate > 0 ? Math.round(totalAsuransi * 0.15) : 0;
+    const refundLendingRate = diffRate >= 1.0 ? Math.round(pokokHutang * 0.005 * tenorYears) : 0;
+
+    const totalRefund = refundPencairan + refundBunga + refundAsuransi + refundLendingRate;
+
+    return {
+      rateNormal,
+      rateUp,
+      tenorYears,
+      pokokHutang,
+      refundBunga,
+      refundAsuransi,
+      refundLendingRate,
+      totalRefund,
+      isDanaTunai: true,
+      refundPencairan,
+      refundRatePercent,
+    };
+  }
 
   // Refund Bunga = Pokok Hutang * Selisih Bunga Tahunan * Tenor * Porsi Bagi Hasil Agen (85%)
   const refundBunga = Math.round(pokokHutang * (diffRate / 100) * tenorYears * 0.85);
@@ -441,6 +480,22 @@ export function generateRefundShareText(
   tahun: number,
   refund: RefundResult
 ): string {
+  if (refund.isDanaTunai) {
+    return `*DETAIL ESTIMASI REFUND / FEE AGEN DANA TUNAI*
+━━━━━━━━━━━━━━━━━━━━
+🏷️ *Kendaraan:* ${vehicleType} (${tahun})
+💵 *Pencairan Bersih:* ${formatRupiah(refund.refundPencairan || refund.pokokHutang)}
+⏱️ *Tenor:* ${Math.round(refund.tenorYears * 12)} Bulan
+📊 *Skema Komisi Agen:* Kemitraan Multifinance (${refund.refundRatePercent || 4.83}% Netto)
+━━━━━━━━━━━━━━━━━━━━
+💰 *Rincian Komisi:*
+• Komisi Pencairan (Net): ${formatRupiah(refund.refundPencairan || refund.totalRefund)}
+${refund.refundBunga > 0 ? `• Bonus Rate Up: ${formatRupiah(refund.refundBunga)}\n` : ""}${refund.refundAsuransi > 0 ? `• Bonus Asuransi: ${formatRupiah(refund.refundAsuransi)}\n` : ""}• PPh 21 / Potongan Resmi: 3.4% (Telah Dipotong)
+━━━━━━━━━━━━━━━━━━━━
+✨ *TOTAL REFUND DITERIMA: ${formatRupiah(refund.totalRefund)}*
+━━━━━━━━━━━━━━━━━━━━`;
+  }
+
   return `*DETAIL ESTIMASI REFUND / FEE MARKETING*
 ━━━━━━━━━━━━━━━━━━━━
 🚗 *Tipe Kendaraan:* ${vehicleType} (${tahun})
@@ -456,6 +511,17 @@ export function generateRefundShareText(
 ━━━━━━━━━━━━━━━━━━━━`;
 }
 
+export function isCommercialVehicle(vehicleType: string, merk?: string): boolean {
+  const upper = (vehicleType + " " + (merk || "")).toUpperCase();
+  const commercialKeywords = [
+    "FE 84", "FE 71", "FE 74", "FE 73", "FE 75", "FE 83", "FE 80",
+    "CANTER", "COLT DIESEL", "FUSO", "DUTRO", "HINO", "GIGA", "ELF",
+    "NKR", "NMR", "NLR", "TRAGA", "L300", "L 300", "CHASIS", "DUMP",
+    "BAK", "BOX", "TANGKI", "BUS", "PU ", "PICK UP", "PICKUP"
+  ];
+  return commercialKeywords.some((kw) => upper.includes(kw));
+}
+
 export interface DanaTunaiParams {
   category: "MOBIL" | "MOTOR";
   merk: string;
@@ -466,7 +532,7 @@ export interface DanaTunaiParams {
   tenorMonths: number; // 12, 18, 24, 30, 36, 48, 60
   flatRateAnnual?: number;
   adminAmount?: number;
-  provisiPercent?: number; // e.g. 1.5%
+  provisiPercent?: number; // e.g. 2.0%
   asuransiType?: "TLO" | "ALL_RISK" | "NONE";
   biayaDipotongPencairan?: boolean; // true = potong dari pencairan, false = dikreditkan
   angsuranType?: "ADVANCE" | "ARREAR";
@@ -482,6 +548,9 @@ export interface DanaTunaiResult extends LoanResult {
   pencairanBersih: number;
   totalPotongan: number;
   biayaDipotongPencairan: boolean;
+  totalRefund: number;
+  refundRatePercent: number;
+  isCommercial: boolean;
 }
 
 export function calculateDanaTunai(params: DanaTunaiParams): DanaTunaiResult {
@@ -496,62 +565,45 @@ export function calculateDanaTunai(params: DanaTunaiParams): DanaTunaiResult {
   } = params;
 
   const tenorYears = tenorMonths / 12;
+  const isCommercial = category === "MOBIL" && isCommercialVehicle(vehicleType, merk);
 
-  // 1. Suku Bunga Default
-  const defaultRate =
-    category === "MOBIL"
-      ? tenorMonths <= 12
-        ? 8.5
-        : tenorMonths <= 24
-        ? 9.5
-        : tenorMonths <= 36
-        ? 10.5
-        : tenorMonths <= 48
-        ? 11.5
-        : 12.5
-      : tenorMonths <= 12
-      ? 14.5
-      : tenorMonths <= 24
-      ? 16.5
-      : 18.5;
+  // 1. Plafon Pinjaman dari Nilai Taksasi x LTV%
+  const plafonPinjaman = Math.round(otr * (ltvPercent / 100));
 
-  const flatRate = params.flatRateAnnual ?? defaultRate;
-
-  // 2. Biaya Administrasi
+  // 2. Biaya Administrasi Resmi Multifinance
   const defaultAdmin =
     category === "MOBIL"
       ? tenorMonths <= 12
-        ? 2000000
-        : tenorMonths <= 24
-        ? 2250000
-        : tenorMonths <= 36
         ? 2500000
-        : 2750000
+        : tenorMonths <= 24
+        ? 2750000
+        : tenorMonths <= 36
+        ? 3000000
+        : 3500000
       : tenorMonths <= 12
       ? 650000
       : 800000;
 
   const adminFee = params.adminAmount ?? defaultAdmin;
 
-  // 3. Plafon Pinjaman dari Nilai Taksasi x LTV%
-  const plafonPinjaman = Math.round(otr * (ltvPercent / 100));
-
-  // 4. Biaya Provisi
-  const provisiPercent = params.provisiPercent ?? 1.5;
+  // 3. Biaya Provisi (standar 2.0% di multifinance Dana Tunai)
+  const provisiPercent = params.provisiPercent ?? 2.0;
   const provisiFee = Math.round(plafonPinjaman * (provisiPercent / 100));
 
-  // 5. Asuransi Kendaraan
+  // 4. Asuransi Kendaraan (TLO / All Risk)
   const asuransiType = params.asuransiType ?? "TLO";
   let insuranceRatePerYear = 0;
   if (asuransiType === "TLO") {
-    insuranceRatePerYear = category === "MOBIL" ? 0.0055 : 0.018;
+    // Truk Niaga komersial memiliki rate TLO lebih tinggi (~1.0% / thn) vs Mobil Penumpang (~0.50% / thn)
+    insuranceRatePerYear = category === "MOBIL" ? (isCommercial ? 0.0100 : 0.0050) : 0.018;
   } else if (asuransiType === "ALL_RISK") {
-    insuranceRatePerYear = category === "MOBIL" ? 0.0247 : 0.035;
+    insuranceRatePerYear = category === "MOBIL" ? (isCommercial ? 0.0300 : 0.0247) : 0.035;
   }
   const totalAsuransi = Math.round(otr * insuranceRatePerYear * tenorYears);
 
-  // 6. Skema Biaya & Angsuran
-  const biayaDipotongPencairan = params.biayaDipotongPencairan ?? true;
+  // 5. Skema Biaya & Pencairan
+  // Pada pengajuan Dana Tunai resmi (contoh BFI), biaya dikreditkan agar dana cair utuh 100% ke rekening
+  const biayaDipotongPencairan = params.biayaDipotongPencairan ?? false;
   const angsuranType = params.angsuranType ?? "ARREAR";
 
   let totalPokokHutang = plafonPinjaman;
@@ -559,27 +611,69 @@ export function calculateDanaTunai(params: DanaTunaiParams): DanaTunaiResult {
   let pencairanBersih = 0;
 
   if (biayaDipotongPencairan) {
-    // Biaya dipotong langsung dari nilai pencairan ke nasabah
     totalPokokHutang = plafonPinjaman;
     totalPotongan = adminFee + provisiFee + totalAsuransi;
+    pencairanBersih = Math.max(0, plafonPinjaman - totalPotongan);
   } else {
-    // Biaya dikreditkan / dikapitalisasi ke dalam pokok hutang
     totalPokokHutang = plafonPinjaman + adminFee + provisiFee + totalAsuransi;
     totalPotongan = 0;
+    pencairanBersih = plafonPinjaman;
   }
 
-  // 7. Total Bunga & Total Hutang
-  const totalBunga = Math.round(totalPokokHutang * (flatRate / 100) * tenorYears);
-  const totalHutang = totalPokokHutang + totalBunga;
-  const angsuranBulanan = Math.round(totalHutang / tenorMonths);
+  // 6. Angsuran Bulanan & Suku Bunga
+  let angsuranBulanan = 0;
+  let totalHutang = 0;
+  let totalBunga = 0;
+  let flatRate = 0;
+
+  if (params.flatRateAnnual !== undefined) {
+    flatRate = params.flatRateAnnual;
+    totalBunga = Math.round(totalPokokHutang * (flatRate / 100) * tenorYears);
+    totalHutang = totalPokokHutang + totalBunga;
+    angsuranBulanan = Math.round(totalHutang / tenorMonths);
+  } else {
+    // Menggunakan matriks faktor pasar resmi pembiayaan Dana Tunai (BFI Finance)
+    let monthlyFactor = 0;
+    if (category === "MOBIL") {
+      if (tenorMonths <= 12) monthlyFactor = isCommercial ? 0.0955 : 0.0968;
+      else if (tenorMonths <= 24) monthlyFactor = isCommercial ? 0.0538 : 0.0545;
+      else if (tenorMonths <= 36) monthlyFactor = isCommercial ? 0.0415 : 0.0422;
+      else if (tenorMonths <= 48) monthlyFactor = isCommercial ? (8111000 / 224000000) : (4856000 / 130000000);
+      else monthlyFactor = isCommercial ? 0.0322 : 0.0332;
+    } else {
+      // Motor
+      if (tenorMonths <= 11) monthlyFactor = 0.118;
+      else if (tenorMonths <= 17) monthlyFactor = 0.082;
+      else if (tenorMonths <= 23) monthlyFactor = 0.065;
+      else if (tenorMonths <= 29) monthlyFactor = 0.055;
+      else if (tenorMonths <= 35) monthlyFactor = 0.049;
+      else monthlyFactor = 0.045;
+    }
+
+    angsuranBulanan = Math.round(plafonPinjaman * monthlyFactor);
+    totalHutang = angsuranBulanan * tenorMonths;
+    totalBunga = Math.max(0, totalHutang - totalPokokHutang);
+    flatRate = Number(((totalBunga / totalPokokHutang) / tenorYears * 100).toFixed(2));
+  }
+
   const angsuranBulat = Math.ceil(angsuranBulanan / 1000) * 1000;
 
   // Jika ADDM (Angsuran Pertama di Muka), angsuran ke-1 dipotong dari pencairan
   if (angsuranType === "ADVANCE") {
     totalPotongan += angsuranBulanan;
+    pencairanBersih = Math.max(0, pencairanBersih - angsuranBulanan);
   }
 
-  pencairanBersih = Math.max(0, plafonPinjaman - totalPotongan);
+  // 7. Total Refund Mitra / Agen Dana Tunai
+  // Dihitung langsung dari Nilai Pencairan Bersih (Net to Finance)
+  let refundRatePercent = 4.83;
+  if (tenorMonths <= 12) refundRatePercent = 1.45;
+  else if (tenorMonths <= 24) refundRatePercent = 2.65;
+  else if (tenorMonths <= 36) refundRatePercent = 3.72;
+  else if (tenorMonths <= 48) refundRatePercent = 4.83;
+  else refundRatePercent = 5.55;
+
+  const totalRefund = Math.round(pencairanBersih * (refundRatePercent / 100));
 
   // 8. Jadwal Amortisasi
   const amortizationSchedule = [];
@@ -608,6 +702,9 @@ export function calculateDanaTunai(params: DanaTunaiParams): DanaTunaiResult {
     pencairanBersih,
     totalPotongan,
     biayaDipotongPencairan,
+    totalRefund,
+    refundRatePercent,
+    isCommercial,
     otr,
     dpNet: otr - plafonPinjaman,
     dpGross: otr - plafonPinjaman,
@@ -656,6 +753,9 @@ export function generateDanaTunaiShareText(
 • *Angsuran / Bulan:* ${formatRupiah(result.angsuranBulanan)}
 • *Suku Bunga:* ${result.flatRateAnnual}% p.a. Flat
 • *Tipe Angsuran:* ${result.angsuranType === "ARREAR" ? "ADDB (Di Belakang)" : "ADDM (Di Muka)"}
+━━━━━━━━━━━━━━━━━━━━
+💰 *Komisi Kemitraan (Refund Agen):*
+• *Total Refund:* ${formatRupiah(result.totalRefund)} (${result.refundRatePercent}% Netto)
 ━━━━━━━━━━━━━━━━━━━━
 📋 *Struktur Biaya:*
 • Biaya Administrasi: ${formatRupiah(result.biayaAdmin)}

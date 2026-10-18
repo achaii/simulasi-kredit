@@ -16,6 +16,8 @@ interface RefundModalProps {
   tenorMonths: number;
   rateNormal: number;
   totalAsuransi: number;
+  isDanaTunai?: boolean;
+  pencairanBersih?: number;
 }
 
 export default function RefundModal({
@@ -27,13 +29,23 @@ export default function RefundModal({
   tenorMonths,
   rateNormal,
   totalAsuransi,
+  isDanaTunai = false,
+  pencairanBersih,
 }: RefundModalProps) {
-  const [rateUp, setRateUp] = useState<number>(Number((rateNormal + 1.5).toFixed(2)));
+  const [rateUp, setRateUp] = useState<number>(Number((rateNormal + (isDanaTunai ? 0 : 1.5)).toFixed(2)));
   const [copied, setCopied] = useState<boolean>(false);
 
   if (!isOpen) return null;
 
-  const refund = calculateRefund(pokokHutang, tenorMonths, rateNormal, rateUp, totalAsuransi);
+  const refund = calculateRefund(
+    pokokHutang,
+    tenorMonths,
+    rateNormal,
+    rateUp,
+    totalAsuransi,
+    isDanaTunai,
+    pencairanBersih
+  );
 
   const handleCopy = () => {
     const text = generateRefundShareText(vehicleType, tahun, refund);
@@ -60,12 +72,14 @@ export default function RefundModal({
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-lg font-extrabold text-[#1A3835]">
-                  Simulasi Refund &amp; Fee Agen
+                  {isDanaTunai ? "Simulasi Komisi & Refund Agen Dana Tunai" : "Simulasi Refund & Fee Agen"}
                 </h3>
-                <span className="flip7-badge badge-coral">p$HitungRifund</span>
+                <span className="flip7-badge badge-coral">{isDanaTunai ? "Dana Tunai" : "p$HitungRifund"}</span>
               </div>
               <p className="text-xs text-[#6B9590] mt-0.5">
-                Perhitungan komisi marketing / dealer berdasarkan selisih bunga, asuransi, dan lending rate
+                {isDanaTunai
+                  ? "Perhitungan komisi kemitraan resmi agen / broker pembiayaan dana tunai gadai BPKB"
+                  : "Perhitungan komisi marketing / dealer berdasarkan selisih bunga, asuransi, dan lending rate"}
               </p>
             </div>
           </div>
@@ -88,9 +102,11 @@ export default function RefundModal({
               </p>
             </div>
             <div className="text-right">
-              <span className="text-xs text-[#6B9590] font-bold block">Pokok Hutang:</span>
+              <span className="text-xs text-[#6B9590] font-bold block">
+                {isDanaTunai ? "Pencairan Bersih (NTF):" : "Pokok Hutang:"}
+              </span>
               <p className="text-sm font-extrabold text-[#1E8C86]">
-                {formatRupiah(pokokHutang)}
+                {formatRupiah(isDanaTunai ? (pencairanBersih || pokokHutang) : pokokHutang)}
               </p>
             </div>
           </div>
@@ -98,14 +114,20 @@ export default function RefundModal({
           {/* Rate Settings */}
           <div className="grid grid-cols-2 gap-3">
             <div className="p-3.5 rounded-2xl bg-[#EFF8F7] border border-[#2BA8A2]/20">
-              <span className="text-xs text-[#6B9590] font-bold block mb-1">Rate Normal (Dasar):</span>
-              <p className="text-xl font-black text-[#2BA8A2]">{rateNormal}%</p>
-              <span className="text-[11px] text-[#6B9590]">Suku Bunga Dasar Standar</span>
+              <span className="text-xs text-[#6B9590] font-bold block mb-1">
+                {isDanaTunai ? "Tarif Komisi Kemitraan:" : "Rate Normal (Dasar):"}
+              </span>
+              <p className="text-xl font-black text-[#2BA8A2]">
+                {isDanaTunai ? `${refund.refundRatePercent || 4.83}% Netto` : `${rateNormal}%`}
+              </p>
+              <span className="text-[11px] text-[#6B9590]">
+                {isDanaTunai ? "PPh 21 / Potongan 3.4% Telah Dipotong" : "Suku Bunga Dasar Standar"}
+              </span>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-[#FFF4D0] border border-[#FFD23F]">
               <label className="text-xs font-bold text-[#996B00] flex items-center justify-between mb-1">
-                <span>Rate Up (Jual):</span>
+                <span>{isDanaTunai ? "Rate Up Bunga (Opsional):" : "Rate Up (Jual):"}</span>
                 <span className="flip7-badge badge-gold">
                   +{(rateUp - rateNormal).toFixed(2)}%
                 </span>
@@ -127,18 +149,30 @@ export default function RefundModal({
 
           {/* Breakdown Card */}
           <div className="p-4 rounded-2xl bg-[#FFF8E7] border-2 border-[#FFD23F] space-y-2.5 shadow-sm text-xs">
-            <div className="flex items-center justify-between border-b border-[#FFD23F]/30 pb-2">
-              <span className="text-[#6B9590]">Refund Suku Bunga (Rate Up x Tenor):</span>
-              <span className="font-extrabold text-[#1A3835]">
-                {formatRupiah(refund.refundBunga)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between border-b border-[#FFD23F]/30 pb-2">
-              <span className="text-[#6B9590]">Refund Premi Asuransi Kendaraan:</span>
-              <span className="font-extrabold text-[#1A3835]">
-                {formatRupiah(refund.refundAsuransi)}
-              </span>
-            </div>
+            {isDanaTunai && (
+              <div className="flex items-center justify-between border-b border-[#FFD23F]/30 pb-2">
+                <span className="text-[#6B9590]">Komisi Pencairan Bersih ({refund.refundRatePercent}%):</span>
+                <span className="font-extrabold text-[#1A3835]">
+                  {formatRupiah(refund.refundPencairan || refund.totalRefund)}
+                </span>
+              </div>
+            )}
+            {refund.refundBunga > 0 && (
+              <div className="flex items-center justify-between border-b border-[#FFD23F]/30 pb-2">
+                <span className="text-[#6B9590]">Refund Suku Bunga (Rate Up x Tenor):</span>
+                <span className="font-extrabold text-[#1A3835]">
+                  +{formatRupiah(refund.refundBunga)}
+                </span>
+              </div>
+            )}
+            {!isDanaTunai && (
+              <div className="flex items-center justify-between border-b border-[#FFD23F]/30 pb-2">
+                <span className="text-[#6B9590]">Refund Premi Asuransi Kendaraan:</span>
+                <span className="font-extrabold text-[#1A3835]">
+                  {formatRupiah(refund.refundAsuransi)}
+                </span>
+              </div>
+            )}
             {refund.refundLendingRate > 0 && (
               <div className="flex items-center justify-between border-b border-[#FFD23F]/30 pb-2">
                 <span className="text-[#6B9590]">Refund Lending Rate (Bonus LR):</span>
@@ -153,7 +187,7 @@ export default function RefundModal({
                   🎉 TOTAL REFUND / KOMISI:
                 </span>
                 <span className="text-[11px] text-[#6B9590]">
-                  Estimasi fee bersih cair ke agen/dealer
+                  Estimasi fee bersih cair ke agen / broker
                 </span>
               </div>
               <div className="text-right">
