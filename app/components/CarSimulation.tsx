@@ -321,14 +321,32 @@ export default function CarSimulation({ initialVehicle, onOpenGlossary }: CarSim
                 <span>Uang Muka (% DP Murni):</span>
                 <div className="flex items-center gap-2">
                   <span className="text-[#27AE60] font-extrabold">{formatRupiah(result.dpNet)}</span>
-                  <span className="flip7-badge badge-gold">{dpPercent}% DP</span>
+                  <div className="relative flex items-center w-20">
+                    <input
+                      type="number"
+                      min="10"
+                      max="80"
+                      step="1"
+                      value={dpPercent || ""}
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? 0 : Number(e.target.value);
+                        setDpPercent(val > 80 ? 80 : val);
+                      }}
+                      onBlur={() => {
+                        if (!dpPercent || dpPercent < 10) setDpPercent(10);
+                        if (dpPercent > 80) setDpPercent(80);
+                      }}
+                      className="w-full py-0.5 px-2 pr-6 text-right font-black text-xs text-[#996B00] bg-white border border-[#FFD23F] rounded-lg shadow-sm outline-none"
+                    />
+                    <span className="absolute right-2 font-bold text-xs text-[#996B00] pointer-events-none">%</span>
+                  </div>
                 </div>
               </div>
               <input
                 type="range"
                 min="10"
                 max="80"
-                step="5"
+                step="1"
                 value={dpPercent}
                 onChange={(e) => setDpPercent(Number(e.target.value))}
                 className="w-full h-2.5 rounded-full cursor-pointer accent-[#FFD23F]"

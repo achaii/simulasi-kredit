@@ -618,45 +618,91 @@ export default function DanaTunaiSimulation({
                 <span className="emoji-badge">📊</span>
                 <span>4. Persentase LTV (Loan To Value) &amp; Plafon</span>
               </div>
-              <span className="flip7-badge badge-gold font-extrabold text-sm">
-                LTV {ltvPercent}%
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-[#6B9590] hidden sm:inline">Persentase LTV:</span>
+                <div className="relative flex items-center w-24">
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    step="1"
+                    value={ltvPercent || ""}
+                    onChange={(e) => {
+                      const val = e.target.value === "" ? 0 : Number(e.target.value);
+                      setLtvPercent(val > 100 ? 100 : val);
+                    }}
+                    onBlur={() => {
+                      if (!ltvPercent || ltvPercent < 1) setLtvPercent(10);
+                      if (ltvPercent > 100) setLtvPercent(100);
+                    }}
+                    className="w-full py-1 px-2.5 pr-7 text-right font-black text-sm text-[#996B00] bg-white border-2 border-[#FFD23F] rounded-xl shadow-sm outline-none focus:ring-2 focus:ring-[#FFD23F]/50"
+                  />
+                  <span className="absolute right-2 font-extrabold text-xs text-[#996B00] pointer-events-none">%</span>
+                </div>
+              </div>
             </div>
 
             {/* LTV Quick Chips */}
             <div>
-              <div className="flip7-label">
-                <span>Pilih Persentase LTV:</span>
+              <div className="flip7-label mb-2">
+                <span>Pilih Cepat Persentase LTV:</span>
                 <span className="text-[#996B00] font-bold text-xs">{ltvPercent}% dari Nilai Taksasi</span>
               </div>
 
-              <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5 sm:gap-2 mb-3">
+              <div className="flex flex-wrap gap-2 mb-3">
                 {[50, 60, 70, 75, 80, 85, 90].map((pct) => (
                   <button
                     key={pct}
                     type="button"
                     onClick={() => setLtvPercent(pct)}
-                    className={`tenor-btn ${ltvPercent === pct ? "active-gold" : ""}`}
+                    className={`tenor-btn flex-1 min-w-[55px] ${ltvPercent === pct ? "active-gold" : ""}`}
                   >
                     {pct}%
                   </button>
                 ))}
               </div>
 
-              {/* Slider for LTV */}
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
-                  min="20"
-                  max="95"
-                  step="5"
-                  value={ltvPercent}
-                  onChange={(e) => setLtvPercent(Number(e.target.value))}
-                  className="w-full h-2 bg-[#D8F1EE] rounded-lg appearance-none cursor-pointer accent-[#2BA8A2]"
-                />
-                <span className="font-black text-sm w-12 text-right text-[#1A3835]">
-                  {ltvPercent}%
-                </span>
+              {/* Slider for LTV with 1% step & direct manual input */}
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min="10"
+                    max="100"
+                    step="1"
+                    value={ltvPercent}
+                    onChange={(e) => setLtvPercent(Number(e.target.value))}
+                    className="w-full h-2.5 bg-[#D8F1EE] rounded-lg appearance-none cursor-pointer accent-[#2BA8A2]"
+                  />
+                  <div className="relative flex items-center min-w-[90px] w-[90px]">
+                    <input
+                      type="number"
+                      min="1"
+                      max="100"
+                      step="1"
+                      value={ltvPercent || ""}
+                      onChange={(e) => {
+                        const val = e.target.value === "" ? 0 : Number(e.target.value);
+                        setLtvPercent(val > 100 ? 100 : val);
+                      }}
+                      onBlur={() => {
+                        if (!ltvPercent || ltvPercent < 1) setLtvPercent(10);
+                        if (ltvPercent > 100) setLtvPercent(100);
+                      }}
+                      className="w-full py-1.5 px-2.5 pr-7 text-right font-black text-base text-[#1A3835] bg-white border-2 border-[#2BA8A2]/40 focus:border-[#2BA8A2] rounded-xl shadow-sm outline-none transition"
+                    />
+                    <span className="absolute right-2.5 font-black text-sm text-[#2BA8A2] pointer-events-none">
+                      %
+                    </span>
+                  </div>
+                </div>
+                <div className="flex justify-between text-[11px] text-[#6B9590] font-semibold px-0.5">
+                  <span>10%</span>
+                  <span>50%</span>
+                  <span>75%</span>
+                  <span>85%</span>
+                  <span>100%</span>
+                </div>
               </div>
             </div>
 
@@ -678,7 +724,7 @@ export default function DanaTunaiSimulation({
                 className="flip7-input font-black text-lg sm:text-xl text-[#8A6000] bg-white border-[#FFD23F]"
               />
               <p className="text-[11px] text-[#996B00] font-medium">
-                💡 Anda dapat mengubah LTV di atas atau mengetik langsung nominal dana yang diinginkan
+                💡 Anda dapat menggeser slider (kelipatan 1%), mengetik persentase LTV di kolom %, atau mengetik langsung nominal dana yang diinginkan
               </p>
             </div>
           </div>
