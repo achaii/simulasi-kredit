@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useDeferredValue } from "react";
+import dynamic from "next/dynamic";
 import {
   CarLoanParams,
   LoanResult,
@@ -10,10 +11,12 @@ import {
   getDefaultAdminFee,
   getDefaultRate,
 } from "../utils/calculator";
-import RoundingModal from "./RoundingModal";
-import RefundModal from "./RefundModal";
-import CreditStructureModal from "./CreditStructureModal";
 import vehicleData from "../data/vehicleData.json";
+
+// Dynamic imports for heavy modals
+const RoundingModal = dynamic(() => import("./RoundingModal"), { ssr: false });
+const RefundModal = dynamic(() => import("./RefundModal"), { ssr: false });
+const CreditStructureModal = dynamic(() => import("./CreditStructureModal"), { ssr: false });
 
 interface CarSimulationProps {
   initialVehicle?: string;
@@ -71,12 +74,14 @@ export default function CarSimulation({ initialVehicle, onOpenGlossary }: CarSim
     setCustomRate(getDefaultRate(tenorMonths, skema));
   }, [tenorMonths, skema]);
 
-  // Autocomplete vehicle options
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+
+  // Autocomplete vehicle options with deferred query (no input lag)
   const searchResults = useMemo(() => {
-    if (!searchQuery) return vehicleData.cars.slice(0, 15);
-    const q = searchQuery.toLowerCase();
+    if (!deferredSearchQuery) return vehicleData.cars.slice(0, 15);
+    const q = deferredSearchQuery.toLowerCase().trim();
     return vehicleData.cars.filter((c: string) => c.toLowerCase().includes(q)).slice(0, 20);
-  }, [searchQuery]);
+  }, [deferredSearchQuery]);
 
   // Calculate live results
   const result: LoanResult = useMemo(() => {

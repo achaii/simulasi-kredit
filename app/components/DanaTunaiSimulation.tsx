@@ -1,16 +1,19 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useDeferredValue } from "react";
+import dynamic from "next/dynamic";
 import {
   DanaTunaiResult,
   calculateDanaTunai,
   formatRupiah,
   generateDanaTunaiShareText,
 } from "../utils/calculator";
-import RoundingModal from "./RoundingModal";
-import RefundModal from "./RefundModal";
-import CreditStructureModal from "./CreditStructureModal";
 import vehicleData from "../data/vehicleData.json";
+
+// Dynamic imports for heavy modals
+const RoundingModal = dynamic(() => import("./RoundingModal"), { ssr: false });
+const RefundModal = dynamic(() => import("./RefundModal"), { ssr: false });
+const CreditStructureModal = dynamic(() => import("./CreditStructureModal"), { ssr: false });
 
 interface DanaTunaiSimulationProps {
   initialVehicle?: string;
@@ -321,11 +324,13 @@ export default function DanaTunaiSimulation({
     return category === "MOBIL" ? CAR_BRANDS : MOTOR_BRANDS;
   }, [category]);
 
-  // Filtered vehicle types based on brand and search query
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+
+  // Filtered vehicle types based on brand and deferred search query (no input lag)
   const searchResults = useMemo(() => {
     const rawList = category === "MOBIL" ? vehicleData.cars : vehicleData.motors;
     const isMotor = category === "MOTOR";
-    const q = searchQuery.toLowerCase().trim();
+    const q = deferredSearchQuery.toLowerCase().trim();
 
     return rawList
       .filter((item: string) => {
@@ -340,7 +345,7 @@ export default function DanaTunaiSimulation({
         return item.toLowerCase().includes(q);
       })
       .slice(0, 25);
-  }, [category, merk, searchQuery]);
+  }, [category, merk, deferredSearchQuery]);
 
   // Plafon Pinjaman (calculated from OTR * LTV%)
   const plafonPinjaman = Math.round(otr * (ltvPercent / 100));

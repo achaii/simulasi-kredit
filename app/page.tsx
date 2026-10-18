@@ -1,12 +1,47 @@
 "use client";
 
 import React, { useState } from "react";
+import dynamic from "next/dynamic";
 import Navbar from "./components/Navbar";
 import CarSimulation from "./components/CarSimulation";
-import MotorSimulation from "./components/MotorSimulation";
-import DanaTunaiSimulation from "./components/DanaTunaiSimulation";
-import GlossaryView from "./components/GlossaryView";
-import RefundFeeCalculator from "./components/RefundFeeCalculator";
+
+// Tab skeleton placeholder during lazy chunk load
+function TabSkeleton({ title }: { title: string }) {
+  return (
+    <div className="space-y-6 animate-pulse">
+      <div className="flip7-card h-24 bg-[#EFF8F7] rounded-3xl flex items-center justify-between p-6">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-[#D8F1EE]" />
+          <div className="space-y-2">
+            <div className="h-5 w-44 bg-[#D8F1EE] rounded-lg" />
+            <div className="h-3 w-60 bg-[#D8F1EE]/70 rounded-lg" />
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="lg:col-span-7 h-96 bg-white rounded-3xl border border-[#2BA8A2]/15 p-6" />
+        <div className="lg:col-span-5 h-96 bg-white rounded-3xl border border-[#2BA8A2]/15 p-6" />
+      </div>
+    </div>
+  );
+}
+
+// Code-split tabs: loaded only when user clicks tab
+const MotorSimulation = dynamic(() => import("./components/MotorSimulation"), {
+  loading: () => <TabSkeleton title="Simulasi Motor" />,
+});
+
+const DanaTunaiSimulation = dynamic(() => import("./components/DanaTunaiSimulation"), {
+  loading: () => <TabSkeleton title="Simulasi Dana Tunai" />,
+});
+
+const GlossaryView = dynamic(() => import("./components/GlossaryView"), {
+  loading: () => <TabSkeleton title="Glossary OTR" />,
+});
+
+const RefundFeeCalculator = dynamic(() => import("./components/RefundFeeCalculator"), {
+  loading: () => <TabSkeleton title="Hitung Refund" />,
+});
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<string>("car");

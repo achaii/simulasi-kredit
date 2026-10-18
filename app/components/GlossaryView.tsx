@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useDeferredValue } from "react";
 import vehicleData from "../data/vehicleData.json";
 
 interface GlossaryViewProps {
@@ -9,13 +9,30 @@ interface GlossaryViewProps {
 
 export default function GlossaryView({ onSelectVehicle }: GlossaryViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredQuery = useDeferredValue(searchQuery);
   const [filterType, setFilterType] = useState<"ALL" | "MOBIL" | "MOTOR" | "STNK">("ALL");
   const [currentPage, setCurrentPage] = useState(1);
+  const [glossaryItems, setGlossaryItems] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const itemsPerPage = 30;
 
-  // Filter items
+  // Asynchronously load heavy 465KB glossary data on demand
+  useEffect(() => {
+    let isMounted = true;
+    import("../data/glossaryData.json").then((mod) => {
+      if (isMounted) {
+        setGlossaryItems(mod.default || mod);
+        setIsLoading(false);
+      }
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Filter items using deferredQuery to prevent typing lag
   const filteredItems = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
+    const q = deferredQuery.toLowerCase().trim();
 
     if (filterType === "MOTOR") {
       let motors = vehicleData.motors.map((m: string) => ({
@@ -31,7 +48,7 @@ export default function GlossaryView({ onSelectVehicle }: GlossaryViewProps) {
       return motors;
     }
 
-    let glossary = vehicleData.glossary.map((g: any) => ({
+    let glossary = glossaryItems.map((g: any) => ({
       ...g,
       isMotor: false,
     }));
@@ -69,7 +86,7 @@ export default function GlossaryView({ onSelectVehicle }: GlossaryViewProps) {
       );
     }
     return glossary;
-  }, [searchQuery, filterType]);
+  }, [deferredQuery, filterType, glossaryItems]);
 
   const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
   const currentItems = filteredItems.slice(
@@ -201,7 +218,16 @@ export default function GlossaryView({ onSelectVehicle }: GlossaryViewProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#EFF8F7]">
-              {currentItems.length > 0 ? (
+              {isLoading && filterType !== "MOTOR" ? (
+                <tr>
+                  <td colSpan={6} className="py-10 text-center text-[#2BA8A2] font-bold">
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="inline-block animate-spin text-lg">⏳</span>
+                      <span>Memuat database OTR lengkap...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : currentItems.length > 0 ? (
                 currentItems.map((item: any, idx: number) => {
                   const globalIndex = (currentPage - 1) * itemsPerPage + idx + 1;
                   return (

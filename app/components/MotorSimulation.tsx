@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useDeferredValue } from "react";
+import dynamic from "next/dynamic";
 import {
   MotorLoanParams,
   LoanResult,
@@ -8,10 +9,12 @@ import {
   formatRupiah,
   generateShareText,
 } from "../utils/calculator";
-import RoundingModal from "./RoundingModal";
-import RefundModal from "./RefundModal";
-import CreditStructureModal from "./CreditStructureModal";
 import vehicleData from "../data/vehicleData.json";
+
+// Dynamic imports for heavy modals
+const RoundingModal = dynamic(() => import("./RoundingModal"), { ssr: false });
+const RefundModal = dynamic(() => import("./RefundModal"), { ssr: false });
+const CreditStructureModal = dynamic(() => import("./CreditStructureModal"), { ssr: false });
 
 interface MotorSimulationProps {
   initialMotor?: string;
@@ -21,6 +24,7 @@ interface MotorSimulationProps {
 export default function MotorSimulation({ initialMotor, onOpenGlossary }: MotorSimulationProps) {
   const [motorName, setMotorName] = useState<string>(initialMotor || "VARIO 160 CBS");
   const [searchQuery, setSearchQuery] = useState<string>(initialMotor || "VARIO 160 CBS");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
 
   const [regional, setRegional] = useState<string>("JABAR 1");
@@ -44,12 +48,12 @@ export default function MotorSimulation({ initialMotor, onOpenGlossary }: MotorS
     }
   }, [initialMotor]);
 
-  // Autocomplete motor options
+  // Autocomplete motor options with deferred query
   const searchResults = useMemo(() => {
-    if (!searchQuery) return vehicleData.motors.slice(0, 15);
-    const q = searchQuery.toLowerCase();
+    if (!deferredSearchQuery) return vehicleData.motors.slice(0, 15);
+    const q = deferredSearchQuery.toLowerCase().trim();
     return vehicleData.motors.filter((m: string) => m.toLowerCase().includes(q)).slice(0, 20);
-  }, [searchQuery]);
+  }, [deferredSearchQuery]);
 
   // Adjust rate based on tenor
   useEffect(() => {

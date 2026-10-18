@@ -947,3 +947,27 @@ html, body {
   background: var(--cream);
   color: var(--primary-dark);
 }
+
+/* =======================================================
+   PERFORMANCE & RENDERING OPTIMIZATIONS
+   ======================================================= */
+/* Hardware acceleration for modals & drawers */
+.flip7-modal-overlay,
+.flip7-modal-content,
+.flip7-mobile-drawer,
+.flip7-dropdown {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Defer rendering for below-the-fold content */
+footer {
+  content-visibility: auto;
+  contain-intrinsic-size: auto none auto 100px;
+}
+
+/* Optimize table rendering */
+table {
+  text-rendering: optimizeLegibility;
+}
+

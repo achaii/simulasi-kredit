@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import vehicleData from "../../data/vehicleData.json";
+import glossaryData from "../../data/glossaryData.json";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -16,7 +17,7 @@ export async function GET(request: Request) {
   }
 
   if (type === "glossary") {
-    let items = vehicleData.glossary;
+    let items = glossaryData;
     if (q) {
       items = items.filter(
         (g: { model: string; kode_stnk: string; nama_pasar: string; kode: string }) =>
